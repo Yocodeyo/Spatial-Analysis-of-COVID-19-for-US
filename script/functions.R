@@ -1,5 +1,4 @@
 library(fMultivar) #hexagonal binning
-library(rstudioapi) #sets working directory to your current directory automatically
 library(spatstat)
 library(sf)
 library(maptools)
