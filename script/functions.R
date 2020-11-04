@@ -3,8 +3,10 @@ library(spatstat)
 library(sf)
 library(maptools)
 library(tidyverse)
+library(ggrepel)
 library(tmap)
 library(rgdal)
+library(RColorBrewer)
 
 hexbin_map <- function(spdf, ...) {
   #hexagonal binning

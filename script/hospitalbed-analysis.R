@@ -12,7 +12,6 @@ cty.csv <- read_csv("../data/COVID-19_US_County_JHU_Data_&_Demographics/us_count
 cty.sf <- st_read("../data/COVID-19_US_County_JHU_Data_&_Demographics/us_county.shp", stringsAsFactors = FALSE)
 covid <- read_csv("../data/COVID-19_US_County_JHU_Data_&_Demographics/covid_us_county.csv")[, c(1,2,3,8,4,5,6,7,9)] 
 
-
 #### Preprocessing ####
 
 #states, counties and covid
@@ -30,15 +29,15 @@ counties <- merge(cty, cty.csv, by="fips") %>%
 
 ##union based on state_code
 states <- counties %>%
-  group_by(state) %>%
+  group_by(state, state_code) %>%
   summarize() %>%
   ungroup()
 plot(states)
 
 ##use july covid data
-covid.aug1 <- covid %>% filter(date == as.Date("2020-08-01")) 
-covid.jul1 <- covid %>% filter(date == "2020-07-01")
-covid.jul <- cbind(covid.aug1[, 1:7], covid.aug1[, c(8:9)] - covid.jul1[, c(8:9)]) %>% 
+covid.tojul31 <- covid %>% filter(date == "2020-07-31")
+covid.tojun30 <- covid %>% filter(date == as.Date("2020-06-30"))
+covid.jul <- cbind(covid.tojul31[, 1:7], covid.tojul31[, c(8:9)] - covid.tojun30[, c(8:9)]) %>% 
   group_by(state) %>%
   summarise(ncases = sum(cases), ndeaths = sum(deaths)) %>%
   data.frame()
@@ -55,11 +54,29 @@ covid.data <- merge(covid.jul, pop, by="state") %>%
     death_detected_rate = ndeaths / ncases) %>% 
   merge(states, by="state")
 
-rm(covid.aug1, covid.jul1, covid.jul, pop)
+rm(covid.tojul31, covid.tojun30, covid.jul, pop)
+
+
+#### EDA with newly merged data ####
+
+ggplot(covid.data, aes(x=case_rate, y=death_rate, color=death_detected_rate)) +
+  geom_point() +
+  scale_color_gradient(low="pink", high="red") +
+  geom_text_repel(aes(label=state_code)) +
+  labs(title="Death Rate vs Case Rate vs Death among Detected Rate per State",
+       subtitle="July 2020",
+       x="Case Rate", 
+       y="Death Rate", 
+       color="Death Detected Rate") +
+  theme_minimal() +
+  theme(legend.position=c(0.9, 0.2))
+
 
 #hospital locations and beds
 
 ##uninterested in hospitals not meant for general public or for Covid 
+beds.demo <- beds.sf %>% select(HOSPITAL_N, HOSPITAL_T, NUM_LICENS, NUM_STAFFE, NUM_ICU_BE, ADULT_ICU_, PEDI_ICU_B, BED_UTILIZ, Potential_, AVG_VENTIL, FIPS, geometry)
+
 hospitaltypes <- beds.sf$HOSPITAL_T %>% table() %>% data.frame() %>% rename(Hospital_Type = ".")
 ggplot(hospitaltypes, aes(x=Hospital_Type, y=Freq)) + 
   geom_bar(stat="identity") + 
@@ -71,6 +88,13 @@ noncovidhospitals <- c("VA Hospital", "Rehabilitation Hospital", "Psychiatric Ho
 beds.sf <- beds.sf %>% filter(!(HOSPITAL_T %in% noncovidhospitals))
 newhospitaltypes <- beds.sf$HOSPITAL_T %>% table() %>% data.frame() %>% rename(Hospital_Type = ".")
 sum(newhospitaltypes$Freq) / sum(hospitaltypes$Freq)
+
+hospitaltypes$AcceptsCovidPatients <- ifelse(!(hospitaltypes$Hospital_Type %in% noncovidhospitals), "Yes", "No")
+ggplot(hospitaltypes, aes(x=Hospital_Type, y=Freq, fill=AcceptsCovidPatients)) + 
+  geom_bar(stat="identity") + 
+  labs(title="Frequency of Hospital Types in America", x="Hospital Type", y="Frequency") +
+  coord_flip() +
+  theme_minimal()
 
 beds.sf <- beds.sf %>% 
   filter(!(STATE_NAME %in% c("Puerto Rico", "Hawaii", "Alaska"))) #noncontiguous states
@@ -132,7 +156,7 @@ tm_shape(as_Spatial(states)) + tm_borders() +
   tm_shape(st_as_sf(covid.data)) + tm_bubbles("death_detected_rate", border.lwd = NA, scale = 0.8)
 
 #choropleth maps
-tmap_mode("plot")
+tmap_mode("view")
 
 ##borders
 tm_shape(as_Spatial(counties)) + tm_borders(col = "grey40", lwd = 0.5) +
@@ -143,7 +167,11 @@ max(covid.data.sf$case_rate)
 ggplot(covid.data.sf, aes(x=case_rate)) + 
   geom_histogram(binwidth=0.001, boundary=0, color="black", fill="white") +
   scale_x_continuous(breaks=seq(0, 0.016, 0.001)) +
-  theme_classic()
+  labs(title="Histogram of Case Rates",
+       subtitle="= #Cases/Population\nMax = 0.01543596",
+       x="Case Rate",
+       y="Count") +
+  theme_minimal()
 
 tm_shape(covid.data.sf) + 
   tm_polygons("case_rate", breaks=seq(0,0.016,by=0.001), title="Case Rate") +
@@ -160,7 +188,11 @@ max(covid.data.sf$death_rate)
 ggplot(covid.data.sf, aes(x=death_rate)) + 
   geom_histogram(binwidth=0.00001, boundary=0, color="black", fill="white") +
   scale_x_continuous(breaks=seq(0, 0.0003, 0.00005)) +
-  theme_classic()
+  labs(title="Histogram of Death Rates",
+       subtitle="= #Deaths/Population\nMax = 0.0002949608",
+       x="Death Rate",
+       y="Count") +
+  theme_minimal()
 
 tm_shape(covid.data.sf) + 
   tm_polygons("death_rate", breaks=seq(0,0.0003,by=0.00005), title="Death Rate") +
@@ -177,7 +209,11 @@ max(covid.data.sf$death_detected_rate)
 ggplot(covid.data.sf, aes(x=death_detected_rate)) + 
   geom_histogram(binwidth=0.005, boundary=0, color="black", fill="white") +
   scale_x_continuous(breaks=seq(0, 0.08, 0.005)) +
-  theme_classic()
+  labs(title="Histogram of Death among Detected Rates",
+       subtitle="= #Deaths/#Cases\nMax = 0.07845492",
+       x="Death among Detected Rate",
+       y="Count") +
+  theme_minimal()
 
 tm_shape(covid.data.sf) + 
   tm_polygons("death_detected_rate", breaks=seq(0,0.08,by=0.005), title="Death/Cases Rate") +
@@ -206,14 +242,14 @@ ggplot(licensed, aes(x=NUM_LICENS)) +
 
 tm_shape(covid.data.sf) + 
   tm_polygons("case_rate", 
-              breaks=seq(0,0.016,by=0.001), 
+              breaks=seq(0,0.016,by=0.002), 
               title="Cases Rate") +
   tm_shape(licensed) +
   tm_dots("NUM_LICENS", 
           title="No. of Licensed Beds", 
           breaks=c(0,20,40,60,100,200,400,2100),
-          size=0.04,
-          palette="-BuGn",
+          size=0.06,
+          palette="BuGn",
           colorNA=NULL) +
   tm_layout(main.title="Location and Number of Licensed Beds\nacross Case Rate per American State",
             main.title.size=1, main.title.position="centre",
@@ -221,7 +257,7 @@ tm_shape(covid.data.sf) +
             frame=FALSE) +
   tm_compass(type = "rose", position = c("left", "bottom")) +
   tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
-  tmap_style("beaver")
+  tmap_style("white")
 
 ##licensed beds + by state + death rate
 tm_shape(covid.data.sf) + 
