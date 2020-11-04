@@ -22,7 +22,7 @@ cty <- cty.sf %>%
   group_by(fips) %>%
   summarize() %>%
   ungroup()
-plot(cty)
+#plot(cty)
 
 counties.full <- merge(cty, cty.csv, by="fips") %>%
   filter(!(state %in% c("Puerto Rico", "Hawaii", "Alaska"))) #noncontiguous states
@@ -36,7 +36,7 @@ states <- counties.full %>%
   group_by(state, state_code) %>%
   summarize() %>%
   ungroup()
-plot(states)
+#plot(states)
 
 ##use july covid data, split by state
 covid.tojul31 <- covid %>% filter(date == "2020-07-31")
@@ -178,7 +178,6 @@ ggplot(covid.data.cty, aes(x=case_rate)) +
 
 ##hist: death rate
 summary(covid.data.cty$death_rate)
-
 ggplot(covid.data.cty, aes(x=death_rate)) + 
   geom_histogram(binwidth=0.00001, boundary=0, color="black", fill="white") +
   scale_x_continuous(breaks=seq(0, 0.002, 0.0005)) +
@@ -398,17 +397,61 @@ tm_shape(covid.data.cty.sf) +
           size=0.06,
           palette="BuGn",
           colorNA=NULL) +
-  tm_layout(main.title="Location and Number of Licensed Beds\nacross Case Rate per American County",
-            main.title.size=1, main.title.position="centre",
+  tm_layout(main.title="Location and Number of Licensed Beds across Case Rate per American County",
+            main.title.size=1.5, main.title.position="centre",
             legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
             frame=FALSE) +
   tm_compass(type = "rose", position = c("left", "bottom")) +
   tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
   tmap_style("white")
 
-##borders
-tm_shape(as_Spatial(counties)) + tm_borders(col = "grey40", lwd = 0.5) +
-  tm_shape(as_Spatial(states)) + tm_borders(col = "black", lwd = 1) 
+##licensed beds + by county + death rate
+tm_shape(covid.data.cty.sf) + 
+  tm_polygons("death_rate", 
+              breaks=c(0, 2.205e-05, 8.553e-05, 1.681e-03), 
+              title="Death Rate",
+              palette="Greys",
+              border.col="grey65") +
+  tm_shape(covid.data.sf) +
+  tm_borders(col="black", lwd=1) + 
+  tm_shape(licensed) +
+  tm_dots("NUM_LICENS", 
+          title="No. of Licensed Beds", 
+          breaks=c(0,20,40,60,100,200,400,2100),
+          size=0.06,
+          palette="BuGn",
+          colorNA=NULL) +
+  tm_layout(main.title="Location and Number of Licensed Beds across Death Rate per American County",
+            main.title.size=1.5, main.title.position="centre",
+            legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
+            frame=FALSE) +
+  tm_compass(type = "rose", position = c("left", "bottom")) +
+  tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
+  tmap_style("white")
+
+##licensed beds + by county + death detected rate
+tm_shape(covid.data.cty.sf) + 
+  tm_polygons("death_detected_rate", 
+              breaks=c(0, 0.006029, 0.017544, 0.5), 
+              title="Death among Detected Rate",
+              palette="Greys",
+              border.col="grey65") +
+  tm_shape(covid.data.sf) +
+  tm_borders(col="black", lwd=1) + 
+  tm_shape(licensed) +
+  tm_dots("NUM_LICENS", 
+          title="No. of Licensed Beds", 
+          breaks=c(0,20,40,60,100,200,400,2100),
+          size=0.06,
+          palette="BuGn",
+          colorNA=NULL) +
+  tm_layout(main.title="Location and Number of Licensed Beds across Death among Detected Rate per American County",
+            main.title.size=1.5, main.title.position="centre",
+            legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
+            frame=FALSE) +
+  tm_compass(type = "rose", position = c("left", "bottom")) +
+  tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
+  tmap_style("white")
 
 #### icu ####
 icu <- beds.sf.clean %>% select(NUM_ICU_BE, geometry)
