@@ -265,7 +265,7 @@ tm_shape(as_Spatial(states)) + tm_borders() +
   tm_shape(st_as_sf(covid.data)) + tm_bubbles("death_detected_rate", border.lwd = NA, scale = 0.8)
 
 #choropleth maps
-tmap_mode("view")
+tmap_mode("plot")
 
 ##borders
 tm_shape(as_Spatial(counties)) + tm_borders(col = "grey40", lwd = 0.5) +
@@ -274,34 +274,34 @@ tm_shape(as_Spatial(counties)) + tm_borders(col = "grey40", lwd = 0.5) +
 ##case rate
 tm_shape(covid.data.sf) + 
   tm_polygons("case_rate", breaks=seq(0,0.016,by=0.001), title="Case Rate") +
-  tm_layout(main.title="Ratio of Cases to Population per American State",
-            main.title.size=1, main.title.position="centre",
+  tm_layout(main.title="Case Rate per American State",
+            main.title.size=1.5, main.title.position="centre",
             legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
-            frame=FALSE) +
-  tm_compass(type = "rose", position = c("left", "bottom")) +
-  tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
+            frame=TRUE) +
+  tm_compass(type="rose", position = c("left", "bottom")) +
+  tm_scale_bar(width=0.5, position = c("left", "bottom")) +
   tmap_style("beaver")
 
 ##death rate
 tm_shape(covid.data.sf) + 
   tm_polygons("death_rate", breaks=seq(0,0.0003,by=0.00005), title="Death Rate") +
-  tm_layout(main.title="Ratio of Deaths to Population per American State",
-            main.title.size=1, main.title.position="centre",
+  tm_layout(main.title="Death Rate per American State",
+            main.title.size=1.5, main.title.position="centre",
             legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
-            frame=FALSE) +
-  tm_compass(type = "rose", position = c("left", "bottom")) +
-  tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
+            frame=TRUE) +
+  tm_compass(type="rose", position = c("left", "bottom")) +
+  tm_scale_bar(width=0.5, position = c("left", "bottom")) +
   tmap_style("beaver")
   
 ##death among cases rate
 tm_shape(covid.data.sf) + 
   tm_polygons("death_detected_rate", breaks=seq(0,0.08,by=0.005), title="Death/Cases Rate") +
   tm_layout(main.title="Death Among Cases Rate per American State",
-            main.title.size=1, main.title.position="centre",
+            main.title.size=1.5, main.title.position="centre",
             legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
-            frame=FALSE) +
-  tm_compass(type = "rose", position = c("left", "bottom")) +
-  tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
+            frame=TRUE) +
+  tm_compass(type="rose", position = c("left", "bottom")) +
+  tm_scale_bar(width=0.5, position = c("left", "bottom")) +
   tmap_style("beaver")
 
 #dot and choropleth maps
@@ -331,9 +331,9 @@ tm_shape(covid.data.sf) +
           palette="BuGn",
           colorNA=NULL) +
   tm_layout(main.title="Location and Number of Licensed Beds\nacross Case Rate per American State",
-            main.title.size=1, main.title.position="centre",
+            main.title.size=1.5, main.title.position="centre",
             legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
-            frame=FALSE) +
+            frame=TRUE) +
   tm_compass(type = "rose", position = c("left", "bottom")) +
   tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
   tmap_style("white")
@@ -352,9 +352,9 @@ tm_shape(covid.data.sf) +
           palette="BuGn",
           colorNA=NULL) +
   tm_layout(main.title="Location and Number of Licensed Beds\nacross Death Rate per American State",
-            main.title.size=1, main.title.position="centre",
+            main.title.size=1.5, main.title.position="centre",
             legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
-            frame=FALSE) +
+            frame=TRUE) +
   tm_compass(type = "rose", position = c("left", "bottom")) +
   tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
   tmap_style("white")
@@ -373,14 +373,16 @@ tm_shape(covid.data.sf) +
           palette="BuGn",
           colorNA=NULL) +
   tm_layout(main.title="Location and Number of Licensed Beds\nacross Death Among Cases Rate per American State",
-            main.title.size=1, main.title.position="centre",
+            main.title.size=1.5, main.title.position="centre",
             legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
-            frame=FALSE) +
+            frame=TRUE) +
   tm_compass(type = "rose", position = c("left", "bottom")) +
   tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
   tmap_style("white")
 
 #### licensed beds + county ####
+tmap_mode("plot")
+
 ##licensed beds + by county + case rate
 tm_shape(covid.data.cty.sf) + 
   tm_polygons("case_rate", 
@@ -400,7 +402,7 @@ tm_shape(covid.data.cty.sf) +
   tm_layout(main.title="Location and Number of Licensed Beds across Case Rate per American County",
             main.title.size=1.5, main.title.position="centre",
             legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
-            frame=FALSE) +
+            frame=TRUE) +
   tm_compass(type = "rose", position = c("left", "bottom")) +
   tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
   tmap_style("white")
@@ -424,7 +426,7 @@ tm_shape(covid.data.cty.sf) +
   tm_layout(main.title="Location and Number of Licensed Beds across Death Rate per American County",
             main.title.size=1.5, main.title.position="centre",
             legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
-            frame=FALSE) +
+            frame=TRUE) +
   tm_compass(type = "rose", position = c("left", "bottom")) +
   tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
   tmap_style("white")
@@ -433,7 +435,7 @@ tm_shape(covid.data.cty.sf) +
 tm_shape(covid.data.cty.sf) + 
   tm_polygons("death_detected_rate", 
               breaks=c(0, 0.006029, 0.017544, 0.5), 
-              title="Death among Detected Rate",
+              title="Death among Cases Rate",
               palette="Greys",
               border.col="grey65") +
   tm_shape(covid.data.sf) +
@@ -448,7 +450,7 @@ tm_shape(covid.data.cty.sf) +
   tm_layout(main.title="Location and Number of Licensed Beds across Death among Detected Rate per American County",
             main.title.size=1.5, main.title.position="centre",
             legend.title.size=1,legend.text.size=0.7, legend.position=c("right", "bottom"),
-            frame=FALSE) +
+            frame=TRUE) +
   tm_compass(type = "rose", position = c("left", "bottom")) +
   tm_scale_bar(width = 0.5, position = c("left", "bottom")) +
   tmap_style("white")
