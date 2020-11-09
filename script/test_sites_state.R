@@ -78,7 +78,7 @@ library(tmap)
 
 #1. plot test sites
 tm_shape(states_sf) + tm_polygons() +
-  tm_shape(test_sites_sp) + tm_dots(size=0.05, col='darkgreen') +
+  tm_shape(test_sites_sp) + tm_dots(size=0.05, col='darkgreen', title='Test Site') +
   tm_layout(main.title='Test Site Locations in American States',
             main.title.size=1,
             main.title.fontface='bold',
@@ -202,7 +202,3 @@ tm_shape(all) + tm_polygons() +
             legend.outside=TRUE) +
   tm_compass(type='rose', size=1.5, position=c(0.85, 0.03)) +
   tm_scale_bar(position=c(0.02, 0.03))
-
-tm_shape(states_merged) + tm_polygons() +
-  tm_shape(test_sites_hex) + tm_fill(col='z', palette='Greens', alpha=0.9, title='No. of Test Sites') +
-  tm_shape(states_merged) + tm_bubbles('death_among_detected', col='orange', popup.vars=c('No. of Deaths'='deaths', 'No. of Cases'='cases', 'Proportion (%)'='death_among_detected'))
