@@ -1,11 +1,30 @@
-#1. set working directory
 setwd('C:/Users/Jing Ying/Documents/Y4S1/BT4015/Project/Codes')
 
-
-#2. read states shp file
+### DATA PREPARATION ###
 library(sf)
+
+#1. prepare states data
+##1.1 read states shp file
 states_sf <- st_read('../Datasets/cb_2018_us_state_20m/cb_2018_us_state_20m.shp')
 head(states_sf)
+
+##1.2 exclude non-contiguous states
+states_sf <- states_sf[!(states_sf$NAME %in% c('Alaska', 'Hawaii', 'Puerto Rico')),]
+
+
+#2. prepare test sites data
+##2.1 read shp file
+test_sites_sf <- st_read('../Datasets/Testing_Locations/Testing_Locations.shp')
+head(test_sites_sf)
+
+##2.2 select test sites available between 2020-07-01 to 2020-08-01
+test_sites_sf <- test_sites_sf[test_sites_sf$CreationDa>='2020-07-01' & test_sites_sf$CreationDa<='2020-08-01',]
+
+##2.3 select test sites that are still open
+test_sites_sf <- test_sites_sf[test_sites_sf$status=='Open',]
+
+##2.4 convert to sp object
+test_sites_sp <- as_Spatial(test_sites_sf[!st_is_empty(test_sites_sf$geometry), , drop=FALSE])
 
 
 #3. prepare population data
@@ -18,8 +37,8 @@ pop_sum <- aggregate(population~state, data=pop_df, FUN=sum)
 head(pop_sum)
 
 ##3.3 merge states and population data
-states_merged <- merge(states_sf, pop_sum, by.x='NAME', by.y='state')
-head(states_merged)
+all <- merge(states_sf, pop_sum, by.x='NAME', by.y='state')
+head(all)
 
 
 #4. prepare covid data
@@ -38,36 +57,81 @@ covid_sum <- aggregate(cbind(cases,deaths)~state, data=covid_df, FUN=sum)
 head(covid_sum)
 
 ##4.4 merge states and covid data
-states_merged <- merge(states_merged, covid_sum, by.x='NAME', by.y='state')
-head(states_merged)
-
-##4.5 find covid case rate
-states_merged$case_rate <- states_merged$cases/states_merged$population*100
-
-##4.6 find covid death rate
-states_merged$death_rate <- states_merged$deaths/states_merged$population*100
-
-##4.7 find covid death rate among cases
-states_merged$death_case_rate <- states_merged$deaths/states_merged$cases*100
-head(states_merged)
+all <- merge(all, covid_sum, by.x='NAME', by.y='state')
+head(all)
 
 
-#5. prepare test sites data
-##5.1 read shp file
-test_sites_sf <- st_read('../Datasets/Testing_Locations/Testing_Locations.shp')
-head(test_sites_sf)
+#5. create variables of interest
+##5.1 case rate
+all$case_rate <- all$cases/all$population
 
-##5.2 select test sites available between 2020-07-01 to 2020-08-01
-test_sites_sf <- test_sites_sf[test_sites_sf$CreationDa>='2020-07-01' & test_sites_sf$CreationDa<='2020-08-01',]
+##5.2 death rate
+all$death_rate <- all$deaths/all$population
 
-##5.3 convert to sp object
-test_sites_sp <- as_Spatial(test_sites_sf[!st_is_empty(test_sites_sf$geometry), , drop=FALSE])
+##5.3 death rate among detected cases
+all$death_among_detected <- all$deaths/all$cases
+head(all)
 
+#=============================================================
+### EDA ###
+library(tmap)
 
-#6. hexagonal binning of test sites
-##6.1 define function to convert output of hexBinning to spdf
+#1. plot test sites
+tm_shape(states_sf) + tm_polygons() +
+  tm_shape(test_sites_sp) + tm_dots(size=0.05, col='darkgreen', title='Test Site') +
+  tm_layout(main.title='Test Site Locations in American States',
+            main.title.size=1,
+            main.title.fontface='bold',
+            main.title.position=c('center', 'center')) +
+  tm_compass(type='rose', size=1.8, position=c(0.02, 0.15)) +
+  tm_scale_bar(position=c(0.02, 0.02))
+
+#=============================================================
+### HYPOTHESIS TESTING ###
+#H0: distribution of test sites is consistent with CSR
+library(rgdal)
+library(maptools)
+library(raster)
+library(spatstat)
+
+#1. convert test sites to ppp object
+test_sites_ppp <- test_sites_sp
+crs(test_sites_ppp) <- NA
+test_sites_ppp <- as.ppp(test_sites_ppp)
+
+#2. convert states to owin object
+states_ppp <- as_Spatial(states_sf)
+crs(states_ppp) <- NA
+states_ppp <- as.owin(states_ppp)
+
+#3. ANN analysis
+ann.p <- mean(nndist(test_sites_ppp, k=1))
+ann.p #0.07311647
+
+#4. generate null model
+n <- 500L #define no. of simulations
+ann.r <- vector(length=n) #store simulated ANN values
+
+for (i in 1:n) { #loop to create different simulated distributions
+  rand.p <- rpoint(n=test_sites_ppp$n, win=states_ppp)
+  ann.r[i] <- mean(nndist(rand.p, k=1))
+}
+
+#5. plot histogram of expected values under the null
+hist(ann.r, main=NULL, las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.r))
+abline(v=ann.p, col="blue")
+
+#6. compute pseudo p-value from simulation
+N.greater <- sum(ann.r > ann.p)
+p <- min(N.greater+1, n+1-N.greater)/(n+1)
+p #0.001996008
+
+#=============================================================
+### HEXAGONAL BINNING ###
 library(sp)
 library(fMultivar)
+
+#1. define function to convert output of hexBinning to spdf
 hexbin_map <- function(spdf, ...) {
   hbins <- fMultivar::hexBinning(coordinates(spdf), ...)
   
@@ -92,86 +156,49 @@ hexbin_map <- function(spdf, ...) {
   return(hex_cover)
 }
 
-##6.2 view map
-library(tmap)
-tmap_mode('view')
+#2. put test sites into hexagonal bins
 test_sites_hex <- hexbin_map(test_sites_sp, bins=40)
 
-###6.2.1 with covid case rate
-tm_shape(states_merged) + tm_polygons() +
-  tm_shape(test_sites_hex) + tm_fill(col='z', palette='Greens', alpha=0.9, title='No. of Test Sites') +
-  tm_shape(states_merged) + tm_bubbles('case_rate', popup.vars=c('No. of Cases'='cases', 'Population Size'='population', 'Proportion (%)'='case_rate'))
+#=============================================================
+### SPATIAL ANALYSIS ###
+#1. test site density vs case rate
+tm_shape(all) + tm_polygons() +
+  tm_shape(test_sites_hex) +
+    tm_fill(col='z', palette='Greens', alpha=0.9,
+            title='No. of Test Sites') +
+  tm_shape(all) + tm_bubbles('case_rate', col='orange') +
+  tm_layout(main.title='Test Site Density and COVID-19 Case Rate in American States',
+            main.title.size=0.8,
+            main.title.fontface='bold',
+            main.title.position=c('left', 'top'),
+            legend.outside=TRUE) +
+  tm_compass(type='rose', size=1.5, position=c(0.85, 0.03)) +
+  tm_scale_bar(position=c(0.02, 0.03))
 
-###6.2.2 with covid death rate
-tm_shape(states_merged) + tm_polygons() +
-  tm_shape(test_sites_hex) + tm_fill(col='z', palette='Greens', alpha=0.9, title='No. of Test Sites') +
-  tm_shape(states_merged) + tm_bubbles('death_rate', popup.vars=c('No. of Deaths'='deaths', 'Population Size'='population', 'Proportion (%)'='death_rate'))
+#2. test site density vs death rate
+tm_shape(all) + tm_polygons() +
+  tm_shape(test_sites_hex) +
+  tm_fill(col='z', palette='Greens', alpha=0.9,
+          title='No. of Test Sites') +
+  tm_shape(all) + tm_bubbles('death_rate', col='orange') +
+  tm_layout(main.title='Test Site Density and COVID-19 Death Rate in American States',
+            main.title.size=0.8,
+            main.title.fontface='bold',
+            main.title.position=c('left', 'top'),
+            legend.outside=TRUE) +
+  tm_compass(type='rose', size=1.5, position=c(0.85, 0.03)) +
+  tm_scale_bar(position=c(0.02, 0.03))
 
-###6.2.3 with covid death rate among case
-tm_shape(states_merged) + tm_polygons() +
-  tm_shape(test_sites_hex) + tm_fill(col='z', palette='Greens', alpha=0.9, title='No. of Test Sites') +
-  tm_shape(states_merged) + tm_bubbles('death_case_rate', popup.vars=c('No. of Deaths'='deaths', 'No. of Cases'='cases', 'Proportion (%)'='death_case_rate'))
-
-
-#7. hypothesis testing of test sites
-library(rgdal)
-library(maptools)
-library(raster)
-library(spatstat)
-
-#convert test sites to ppp object
-test_sites_ppp <- test_sites_sp
-crs(test_sites_ppp) <- NA
-test_sites_ppp <- as.ppp(test_sites_ppp)
-
-#convert states to owin object
-states_ppp <- as_Spatial(states_sf)
-crs(states_ppp) <- NA
-states_ppp <- as.owin(states_ppp)
-
-##7.1 test with uniformity - hypothesise that distribution of test sites is consistent with CSR
-###7.1.1 ANN analysis
-ann.p <- mean(nndist(test_sites_ppp, k=1))
-ann.p #0.07311647
-
-###7.1.2 generate null model
-n <- 500L #define no. of simulations
-ann.r <- vector(length=n) #store simulated ANN values
-
-for (i in 1:n) { #loop to create different simulated distributions
-  rand.p <- rpoint(n=test_sites_ppp$n, win=states_ppp)
-  ann.r[i] <- mean(nndist(rand.p, k=1))
-}
-
-###7.1.3 plot histogram of expected values under the null
-hist(ann.r, main=NULL, las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.r))
-abline(v=ann.p, col="blue")
-
-###7.1.4 compute pseudo p-value from simulation
-N.greater <- sum(ann.r > ann.p)
-p <- min(N.greater+1, n+1-N.greater)/(n+1)
-p #0.001996008
-
-##7.2 test with influence of case rate - hypothesise that distribution of test sites is wrt case rate
-###7.2.1 convert case rate to raster object
-case_rate_r <- raster(nrow=180, ncols=360, ext=extent(states_merged))
-case_rate_r <- rasterize(states_merged, case_rate_r, 'case_rate')
-
-###7.2.2 generate null model
-n <- 500L #define no. of simulations
-ann.r <- vector(length=n) #store simulated ANN values
-
-for (i in 1:n) { #loop to create different simulated distributions
-  rand.p <- rpoint(n=test_sites_ppp$n, f=as.im(case_rate_r))
-  ann.r[i] <- mean(nndist(rand.p, k=1))
-}
-Window(rand.p) <- states_ppp
-
-###7.2.3 plot histogram of expected values under the null
-hist(ann.r, main=NULL, las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.r))
-abline(v=ann.p, col="blue")
-
-###7.2.4 compute pseudo p-value from simulation
-N.greater <- sum(ann.r > ann.p)
-p <- min(N.greater+1, n+1-N.greater)/(n+1)
-p #0.001996008
+#3. test site density vs death rate among detected cases
+tm_shape(all) + tm_polygons() +
+  tm_shape(test_sites_hex) +
+  tm_fill(col='z', palette='Greens', alpha=0.9,
+          title='No. of Test Sites') +
+  tm_shape(all) + tm_bubbles('death_among_detected', col='orange') +
+  tm_layout(main.title='Test Site Density and COVID-19 Death Rate among Detected Cases in American States',
+            main.title.size=0.8,
+            main.title.fontface='bold',
+            main.title.position=c('left', 'top'),
+            legend.outside=TRUE) +
+  tm_compass(type='rose', size=1.5, position=c(0.85, 0.03)) +
+  tm_scale_bar(position=c(0.02, 0.03))
