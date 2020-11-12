@@ -56,9 +56,19 @@ coords.tmp <- cbind(airtraffic.coord$long, airtraffic.coord$lat)
 library(sp)
 airtraffic.sp <- SpatialPointsDataFrame(coords = coords.tmp, data = airtraffic.coord)
 
+# histogram of count
+hist(airtraffic.sp$count, 
+     main="Histogram of Flight Count at US Airports", 
+     xlab="flight count")
+
 # log count
 airtraffic.sp$logcount <- log(airtraffic.sp$count+1)
 summary(airtraffic.sp$logcount)
+
+# histogram of log count
+hist(airtraffic.sp$logcount, 
+     main="Histogram of Logged Flight Count at US Airports", 
+     xlab="logged flight count")
 
 ## US states polygon ##
 
@@ -122,12 +132,61 @@ airtraffic.idw <- gstat::idw(logcount ~ 1, airtraffic.sp, newdata=grd, idp=2)
 r <- raster(airtraffic.idw)
 r.m <- mask(r, us.state) 
 
+# crop raster with row and column numbers
+r.m.cropped <- crop(r.m, extent(r.m, 30, 75, 70, 180))
+
 # plot interpolated traveller movement
-tm_shape(r.m) + 
+tm_shape(r.m.cropped) + 
   tm_raster(n = 5, palette = "Purples", title="Interpolated traveller movement") +
   tm_shape(us.state) +
   tm_polygons(alpha = 0) +
   tm_layout(main.title="Interpolated Traveller Movement in US (IDW)",
+            main.title.size=1.2, main.title.position="centre",
+            legend.title.size=0.8,legend.text.size=0.7, legend.position=c("right", "bottom")) +
+  tm_compass(type="rose", position = c("left", "bottom"), size = 4) +
+  tm_scale_bar(position = c("left", "bottom"))
+
+## 2nd order trend surface approach ##
+
+f.2 <- as.formula(logcount ~ X + Y + I(X*X) + I(Y*Y) + I(X*Y))
+airtraffic.sp$X <- airtraffic.sp$long
+airtraffic.sp$Y <- airtraffic.sp$lat
+lm.2 <- lm( f.2, data=airtraffic.sp) 
+dat.2nd <- SpatialGridDataFrame(grd, data.frame(var1.pred = predict(lm.2, newdata=grd))) 
+r <- raster(dat.2nd) 
+r.m <- mask(r, us.state) 
+
+# crop raster with row and column numbers
+r.m.cropped <- crop(r.m, extent(r.m, 30, 75, 70, 180))
+
+# plot interpolated traveller movement
+tm_shape(r.m.cropped) + 
+  tm_raster(n = 5, palette = "Purples", title="Interpolated traveller movement") +
+  tm_shape(us.state) +
+  tm_polygons(alpha = 0) +
+  tm_layout(main.title="Interpolated Traveller Movement in US (2nd order trend surface)",
+            main.title.size=1.2, main.title.position="centre",
+            legend.title.size=0.8,legend.text.size=0.7, legend.position=c("right", "bottom")) +
+  tm_compass(type="rose", position = c("left", "bottom"), size = 4) +
+  tm_scale_bar(position = c("left", "bottom"))
+
+## kriging approach ##
+
+var.smpl <- variogram(f.2, airtraffic.sp, cloud = FALSE, cutoff=1000000, width=89900) 
+dat.fit <- fit.variogram(var.smpl, fit.ranges = FALSE, fit.sills = FALSE, vgm(psill=14, model="Sph", range=590000, nugget=0)) 
+dat.krg <- krige( f.2, airtraffic.sp, grd, dat.fit) 
+r <- raster(dat.krg) 
+r.m <- mask(r, us.state) 
+
+# crop raster with row and column numbers
+r.m.cropped <- crop(r.m, extent(r.m, 30, 75, 70, 180))
+
+# plot interpolated traveller movement
+tm_shape(r.m.cropped) + 
+  tm_raster(n = 5, palette = "Purples", title="Interpolated traveller movement") +
+  tm_shape(us.state) +
+  tm_polygons(alpha = 0) +
+  tm_layout(main.title="Interpolated Traveller Movement in US (2nd order trend surface)",
             main.title.size=1.2, main.title.position="centre",
             legend.title.size=0.8,legend.text.size=0.7, legend.position=c("right", "bottom")) +
   tm_compass(type="rose", position = c("left", "bottom"), size = 4) +
