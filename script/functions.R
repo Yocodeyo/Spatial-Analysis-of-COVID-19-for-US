@@ -1,13 +1,3 @@
-library(fMultivar) #hexagonal binning
-library(spatstat)
-library(sf)
-library(maptools)
-library(tidyverse)
-library(ggrepel)
-library(tmap)
-library(rgdal)
-library(RColorBrewer)
-
 hexbin_map <- function(spdf, ...) {
   #hexagonal binning
   hbins <- fMultivar::hexBinning(coordinates(spdf),...)
@@ -26,4 +16,11 @@ hexbin_map <- function(spdf, ...) {
   hex_cover <- SpatialPolygonsDataFrame(hex_cover_sp,data.frame(z=hbins$z),match.ID=FALSE)
   # Return the result
   return(hex_cover)
+}
+
+choose_bw <- function(spdf) { 
+  #choose bandwidth for KDE analysis
+  X <- coordinates(spdf)
+  sigma <- c(sd(X[ ,1]), sd(X[ ,2])) * (2 / (3 * nrow(X))) ^ (1/6)
+  return(sigma / 1000)
 }
