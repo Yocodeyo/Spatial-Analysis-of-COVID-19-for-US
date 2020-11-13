@@ -1,11 +1,12 @@
-setwd('C:/Users/Jing Ying/Documents/Y4S1/BT4015/Project/Codes')
+curr_path <- rstudioapi::getActiveDocumentContext()$path
+setwd(dirname(curr_path))
 
 ### DATA PREPARATION ###
 library(sf)
 
 #1. prepare states data
-##1.1 read states shp file
-states_sf <- st_read('../Datasets/cb_2018_us_state_20m/cb_2018_us_state_20m.shp')
+##1.1 read shp file
+states_sf <- st_read('../data/cb_2018_us_state_20m/cb_2018_us_state_20m.shp')
 head(states_sf)
 
 ##1.2 exclude non-contiguous states
@@ -14,7 +15,7 @@ states_sf <- states_sf[!(states_sf$NAME %in% c('Alaska', 'Hawaii', 'Puerto Rico'
 
 #2. prepare race data
 ##2.1 read csv file
-race_df <- read.csv('../Datasets/us_race.csv')
+race_df <- read.csv('../data/us_race/us_race.csv')
 head(race_df)
 names(race_df)[names(race_df)=='ï..Location'] <- 'Location'
 
@@ -29,7 +30,7 @@ head(race_df)
 
 #3. prepare covid by race data
 ##3.1 read csv file
-race_covid_df <- read.csv('../Datasets/us_race_covid.csv')
+race_covid_df <- read.csv('../data/us_race/us_race_covid.csv')
 head(race_covid_df)
 sapply(race_covid_df, class)
 
