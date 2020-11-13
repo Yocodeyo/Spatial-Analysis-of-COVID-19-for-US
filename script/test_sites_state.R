@@ -1,11 +1,12 @@
-setwd('C:/Users/Jing Ying/Documents/Y4S1/BT4015/Project/Codes')
+curr_path <- rstudioapi::getActiveDocumentContext()$path
+setwd(dirname(curr_path))
 
 ### DATA PREPARATION ###
 library(sf)
 
 #1. prepare states data
-##1.1 read states shp file
-states_sf <- st_read('../Datasets/cb_2018_us_state_20m/cb_2018_us_state_20m.shp')
+##1.1 read shp file
+states_sf <- st_read('../data/cb_2018_us_state_20m/cb_2018_us_state_20m.shp')
 head(states_sf)
 
 ##1.2 exclude non-contiguous states
@@ -14,7 +15,7 @@ states_sf <- states_sf[!(states_sf$NAME %in% c('Alaska', 'Hawaii', 'Puerto Rico'
 
 #2. prepare test sites data
 ##2.1 read shp file
-test_sites_sf <- st_read('../Datasets/Testing_Locations/Testing_Locations.shp')
+test_sites_sf <- st_read('../data/Testing_Locations/Testing_Locations.shp')
 head(test_sites_sf)
 
 ##2.2 select test sites available between 2020-07-01 to 2020-08-01
@@ -29,7 +30,7 @@ test_sites_sp <- as_Spatial(test_sites_sf[!st_is_empty(test_sites_sf$geometry), 
 
 #3. prepare population data
 ##3.1 read csv file
-pop_df <- read.csv('../Datasets/us_county.csv')
+pop_df <- read.csv('../data/COVID-19_US_County_JHU_Data_&_Demographics/us_county.csv')
 head(pop_df)
 
 ##3.2 sum population per state
@@ -43,7 +44,7 @@ head(all)
 
 #4. prepare covid data
 ##4.1 read csv file
-covid_df <- read.csv('../Datasets/covid_us_county.csv')
+covid_df <- read.csv('../data/COVID-19_US_County_JHU_Data_&_Demographics/covid_us_county.csv')
 head(covid_df)
 
 ##4.2 select covid data for 2020-07-01 to 2020-08-01
